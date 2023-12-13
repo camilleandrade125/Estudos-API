@@ -3,14 +3,21 @@ const express = require("express")
 const app = express();
 const cors = require("cors");
 const procurarPessoa = require("./procurarPessoa");
-
+const bcrypt = require("bcrypt")
+const validator = require("email-validator");
+const jwt  = require("jsonwebtoken");
 
 app.use(cors())
 app.use(express.json())
 
-fetch 
+function verificarToken(req, res, next){
 
-app.get("/pessoas", function(req,res){
+    console.log("Passou por aqui")
+    next();
+}
+
+
+app.get("/pessoas",verificarToken,function(req,res){
 
     if (req.query.nome){
         const usuariosFiltradosPeloNome = matrizDePessoas.filter(function(pessoa){
@@ -27,6 +34,7 @@ app.get("/pessoas", function(req,res){
 
         return 
     }
+   
     
     res.json(matrizDePessoas)
     
@@ -35,35 +43,100 @@ app.get("/pessoas", function(req,res){
 
 app.get("/pessoas/:nome", function(req, res){
 
-    const pessoapesquisada = procurarPessoa(req.params.nome)
-    res.json(pessoapesquisada[0])
+    const pessoapesquisada = procurarPessoa(req.params.nome,"nome");
+    res.json(pessoapesquisada)
 
 })
 
-app.post("/pessoas", function(req, res){
-        
-    const pessoaExistente = procurarPessoa(req.body.nome)
-    
+app.post("/pessoas", async function(req, res){
+
+    const arrayDeErros = [];
+
+
     if (!req.body.nome){
 
-        return res.json("É necessário enviar um nome!")
+        arrayDeErros.push("É necessário informar o nome!");
     }
 
-        if (pessoaExistente){
-            
-            res.json("Pessoa já existente!")
-            return;
-        }
+    if (!req.body.email){
+        
+        arrayDeErros.push("É necessário informar o email!")
+    }
 
-        matrizDePessoas.push(req.body)
-        res.json("Pessoa cadastrada.")
+    if (!req.body.senha){
+
+        arrayDeErros.push("É necessário informar a senha")
+    }
+
+    const pessoaExistente = procurarPessoa(req.body.email,"email")
+
+    if (pessoaExistente){
+        
+        arrayDeErros.push("Email já cadastrado.😒")
+    }
+
+    if (!validator.validate (req.body.email)){
+
+        arrayDeErros.push("Formato de email inválido. 😢")
+
+    }
+
+    if (arrayDeErros.length >=1){
+
+        res.json(arrayDeErros)
+        return 
+
+    }
+
+    const senhaHasheada = await bcrypt.hash(req.body.senha, 5);
+
+    req.body.senha = senhaHasheada;
+
+    matrizDePessoas.push(req.body)
+    res.json("Pessoa cadastrada. ✔")
 
 
 })
+
+app.post("/auth",  async function(req, res ){
+
+    const pessoa = procurarPessoa(req.body.email,"email");
+
+    if(!pessoa){
+
+        res.json("Email ou senha incorretos.")
+        return
+
+    }
+
+    const senhaCorreta =  await bcrypt.compare(req.body.senha, pessoa.senha) 
+
+    if(!senhaCorreta){
+
+        res.json("Email ou senha incorretos.")
+        return
+
+    }
+
+   const token = jwt.sign({
+
+    nome: pessoa.nome,
+    email: pessoa.email,
+
+
+   }, "CG2023", {
+    expiresIn :'2h'
+   })
+
+   res.json(token);
+
+
+});
+
 
 app.delete("/pessoas/:nome", function(req, res){
 
-    const pessoa = procurarPessoa(req.params.nome);
+    const pessoa = procurarPessoa(req.params.nome,"nome");
 
     if( !pessoa){
 
@@ -93,7 +166,7 @@ app.listen(3001, function(){
 
 app.put("/pessoas/:nome", function(req, res){
 
-    const pessoa = procurarPessoa(req.params.nome);
+    const pessoa = procurarPessoa(req.params.nome,"nome");
 
     if (!req.body.nome){
 

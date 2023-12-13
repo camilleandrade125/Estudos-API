@@ -1,8 +1,8 @@
 const result = require ("./mock.js")
 
-function procurarPessoa(nome){
+function procurarPessoa(valorDeComparacao, pramsDeObjt){
     const pessoaExistente = result.find( pessoa =>{
-        if (pessoa.nome === nome)
+        if (pessoa[pramsDeObjt] === valorDeComparacao)
         {
             return pessoa;
 
