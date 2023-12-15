@@ -12,8 +12,26 @@ app.use(express.json())
 
 function verificarToken(req, res, next){
 
-    console.log("Passou por aqui")
-    next();
+    const tokenOk = req.header("Authorization")
+
+    if(!tokenOk){
+
+        res.sendStatus(401);
+        return
+    }
+
+    jwt.verify(tokenOk,"CG2023", function(err, decod){
+
+        if(err){
+            res.sendStatus(401);
+        }
+
+        req.jwtDecodificado = decod
+        next();
+
+    })
+
+ 
 }
 
 
@@ -41,14 +59,14 @@ app.get("/pessoas",verificarToken,function(req,res){
 
 });
 
-app.get("/pessoas/:nome", function(req, res){
+app.get("/pessoas/:nome", verificarToken, function(req, res){
 
     const pessoapesquisada = procurarPessoa(req.params.nome,"nome");
     res.json(pessoapesquisada)
 
 })
 
-app.post("/pessoas", async function(req, res){
+app.post("/pessoas",  async function(req, res){
 
     const arrayDeErros = [];
 
@@ -134,7 +152,7 @@ app.post("/auth",  async function(req, res ){
 });
 
 
-app.delete("/pessoas/:nome", function(req, res){
+app.delete("/pessoas/:nome", verificarToken, function(req, res){
 
     const pessoa = procurarPessoa(req.params.nome,"nome");
 
@@ -164,7 +182,7 @@ app.listen(3001, function(){
     
 })
 
-app.put("/pessoas/:nome", function(req, res){
+app.put("/pessoas/:nome", verificarToken, function(req, res){
 
     const pessoa = procurarPessoa(req.params.nome,"nome");
 
